@@ -37,6 +37,15 @@ def run_inference_on_image(model_path, image_path, local_yolov5_repo_path, outpu
     
     print(f'My model is {model}')
 
+    print("Model loaded successfully.")
+    # --- NEW: Set confidence and IoU thresholds for this inference run ---
+    # Lower model.conf to see more detections, including potentially low-confidence ones.
+    # The default is often 0.25, let's try 0.01 to capture almost everything.
+    model.conf = 0.01  # Set confidence threshold to 1%
+    model.iou = 0.45   # Keep IoU threshold for NMS at 0.45 (or adjust as needed)
+    print(f"Inference thresholds set: Confidence={model.conf}, IoU={model.iou}")
+    # --------------------------------------------------------------------
+
     if not os.path.exists(image_path):
         print(f"Error: Image file not found at '{image_path}'")
         return
@@ -46,31 +55,50 @@ def run_inference_on_image(model_path, image_path, local_yolov5_repo_path, outpu
     # Perform inference
     results = model(image_path)
 
-    # --- CHANGE: Use the specified output_inference_base_dir ---
-    # The .save() method saves to a directory like 'output_inference_base_dir/expX/'
-    results.save(save_dir=output_inference_base_dir)
+     # --- NEW: Print prediction percentages ---
+    # results.pred is a list of tensors, one tensor per image in the batch.
+    # Each tensor contains [x1, y1, x2, y2, confidence, class_id]
+    print("\n--- Detections and Confidence Scores ---")
+    if results.pred[0] is not None and len(results.pred[0]) > 0:
+        for *xyxy, conf, cls in results.pred[0]: # Assuming a single image in batch (results.pred[0])
+            class_id = int(cls)
+            confidence = float(conf)
+            class_name = model.names[class_id] # Access class names from the loaded model
 
-    # Find the actual saved image path within the new 'exp' folder
-    latest_exp_dir = sorted([d for d in os.listdir(output_inference_base_dir) if d.startswith('exp')],
-                            key=lambda x: os.path.getmtime(os.path.join(output_inference_base_dir, x)),
-                            reverse=True)
-
-    if latest_exp_dir:
-        actual_saved_img_path = os.path.join(output_inference_base_dir, latest_exp_dir[0], os.path.basename(image_path))
-        print(f"Annotated image saved to: {actual_saved_img_path}")
-
-        try:
-            img_display = Image.open(actual_saved_img_path)
-            plt.imshow(img_display)
-            plt.axis('off')
-            plt.title("Detected Objects")
-            plt.show()
-        except Exception as e:
-            print("Could not display image using matplotlib. Ensure you have a GUI environment.")
-            print(f"Error: {e}")
-            print("Results are still saved to:", actual_saved_img_path)
+            print(f"  Detected: {class_name}")
+            print(f"    Confidence: {confidence:.2f}") # Formatted to 2 decimal places
+            print(f"    Bounding Box: x1={xyxy[0]:.0f}, y1={xyxy[1]:.0f}, x2={xyxy[2]:.0f}, y2={xyxy[3]:.0f}")
+            print("-" * 30)
     else:
-        print("Could not find the saved results image directory.")
+        print("No objects detected in this image.")
+    print("--------------------------------------\n")
+    # -----------------------------------------
+
+    # --- Use the specified output_inference_base_dir ---
+    # The .save() method saves to a directory like 'output_inference_base_dir/expX/'
+    # results.save(save_dir=output_inference_base_dir)
+
+    # # Find the actual saved image path within the new 'exp' folder
+    # latest_exp_dir = sorted([d for d in os.listdir(output_inference_base_dir) if d.startswith('exp')],
+    #                         key=lambda x: os.path.getmtime(os.path.join(output_inference_base_dir, x)),
+    #                         reverse=True)
+
+    # if latest_exp_dir:
+    #     actual_saved_img_path = os.path.join(output_inference_base_dir, latest_exp_dir[0], os.path.basename(image_path))
+    #     print(f"Annotated image saved to: {actual_saved_img_path}")
+
+    #     try:
+    #         img_display = Image.open(actual_saved_img_path)
+    #         plt.imshow(img_display)
+    #         plt.axis('off')
+    #         plt.title("Detected Objects")
+    #         plt.show()
+    #     except Exception as e:
+    #         print("Could not display image using matplotlib. Ensure you have a GUI environment.")
+    #         print(f"Error: {e}")
+    #         print("Results are still saved to:", actual_saved_img_path)
+    # else:
+    #     print("Could not find the saved results image directory.")
 
 
 if __name__ == "__main__":
@@ -96,12 +124,6 @@ if __name__ == "__main__":
     # Make sure 'my_phone_pic.jpg' exists in your SOURCE_PHOTOS_DIR
     TEST_IMAGE_FILENAME = 'imagem_arvore.jpg' # <--- CHANGE THIS to your photo's filename
     TEST_IMAGE_PATH = os.path.join(SOURCE_PHOTOS_DIR, TEST_IMAGE_FILENAME)
-
-
-    # Create the output directory if it doesn't exist
-    os.makedirs(OUTPUT_INFERENCE_DIR, exist_ok=True)
-    print(f"Ensuring output directory exists: {OUTPUT_INFERENCE_DIR}")
-
 
     run_inference_on_image(BEST_PT_PATH, TEST_IMAGE_PATH, LOCAL_YOLOV5_REPO_PATH, OUTPUT_INFERENCE_DIR)
 
