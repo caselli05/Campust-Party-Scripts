@@ -33,22 +33,18 @@ def run_inference_on_image(model_path, image_path, local_yolov5_repo_path, outpu
         print(f"Error loading model: {e}")
         print("Please ensure 'local_yolov5_repo_path' points directly to your cloned YOLOv5 repository.")
         print("Also, confirm that the 'model_path' is correct and accessible.")
-        return
+        return ('', -1)
     
     print(f'My model is {model}')
 
     print("Model loaded successfully.")
-    # --- NEW: Set confidence and IoU thresholds for this inference run ---
-    # Lower model.conf to see more detections, including potentially low-confidence ones.
-    # The default is often 0.25, let's try 0.01 to capture almost everything.
-    model.conf = 0.01  # Set confidence threshold to 1%
-    model.iou = 0.45   # Keep IoU threshold for NMS at 0.45 (or adjust as needed)
+
     print(f"Inference thresholds set: Confidence={model.conf}, IoU={model.iou}")
     # --------------------------------------------------------------------
 
     if not os.path.exists(image_path):
         print(f"Error: Image file not found at '{image_path}'")
-        return
+        return ('', -1)
 
     print(f"Running inference on image: {image_path}")
 
@@ -67,12 +63,14 @@ def run_inference_on_image(model_path, image_path, local_yolov5_repo_path, outpu
 
             print(f"  Detected: {class_name}")
             print(f"    Confidence: {confidence:.2f}") # Formatted to 2 decimal places
-            print(f"    Bounding Box: x1={xyxy[0]:.0f}, y1={xyxy[1]:.0f}, x2={xyxy[2]:.0f}, y2={xyxy[3]:.0f}")
-            print("-" * 30)
+
+            return (class_name, confidence)
+            # print(f"    Bounding Box: x1={xyxy[0]:.0f}, y1={xyxy[1]:.0f}, x2={xyxy[2]:.0f}, y2={xyxy[3]:.0f}")
+            # print("-" * 30)
     else:
         print("No objects detected in this image.")
-    print("--------------------------------------\n")
-    # -----------------------------------------
+    
+    return ('', -1)
 
     # --- Use the specified output_inference_base_dir ---
     # The .save() method saves to a directory like 'output_inference_base_dir/expX/'
@@ -122,10 +120,12 @@ if __name__ == "__main__":
     # You can list all files and loop through them, or pick one.
     # For now, let's just pick a specific image name.
     # Make sure 'my_phone_pic.jpg' exists in your SOURCE_PHOTOS_DIR
-    TEST_IMAGE_FILENAME = 'imagem_arvore.jpg' # <--- CHANGE THIS to your photo's filename
+    TEST_IMAGE_FILENAME = 'bangladesh.jpg' # <--- CHANGE THIS to your photo's filename
     TEST_IMAGE_PATH = os.path.join(SOURCE_PHOTOS_DIR, TEST_IMAGE_FILENAME)
 
-    run_inference_on_image(BEST_PT_PATH, TEST_IMAGE_PATH, LOCAL_YOLOV5_REPO_PATH, OUTPUT_INFERENCE_DIR)
+    ret = run_inference_on_image(BEST_PT_PATH, TEST_IMAGE_PATH, LOCAL_YOLOV5_REPO_PATH, OUTPUT_INFERENCE_DIR)
 
-    print("\nInference script finished. Check the displayed image window and the specified output folder for annotated images.")
-    print(f"Output images are saved in: {os.path.abspath(OUTPUT_INFERENCE_DIR)}")
+    print(ret)
+
+    # print("\nInference script finished. Check the displayed image window and the specified output folder for annotated images.")
+    # print(f"Output images are saved in: {os.path.abspath(OUTPUT_INFERENCE_DIR)}")
